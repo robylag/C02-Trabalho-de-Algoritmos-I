@@ -112,6 +112,7 @@ int main() {
                 cout << "Opção inválida! Tente novamente." << endl;
                 break;
         }
+        
     }
-
     return 0;
+}
