@@ -1,16 +1,18 @@
 #include<iostream>
+#include<fstream>
 #include<locale.h>
 using namespace std;
 
 // Estrutura que representa um produto
 struct Produto {
+    int codigo;        // Código do produto
     char nome[50];        // Nome do produto
     float preco;        // Preço do produto
     int quantidade;     // Quantidade em estoque do produto
 };
 
 // Função para cadastrar um produto
-int cadastro_de_produto(Produto produtos[], int total) {
+int cadastro_de_produto(Produto produtos[], int total, fstream &arquivo) {
     // Verificando a senha administradora para acessar o cadastro de produto
     int password;
     cout << "Digite a senha para acessar o cadastro de produtos: ";
@@ -32,9 +34,15 @@ int cadastro_de_produto(Produto produtos[], int total) {
         cout << "Quantidade em estoque: ";
         cin >> novo.quantidade;
 
+        novo.codigo = total; // Atribuindo o código do produto como o total de produtos cadastrados
+
         // Inserindo o novo produto no array de produtos
         produtos[total] = novo;
         total++;
+
+        arquivo.seekp(0, arquivo.end);
+	    arquivo.write((char *)&novo, sizeof(novo));
+        arquivo.clear();
 
         cout << "Produto cadastrado com sucesso!" << endl << endl;;
     } 
@@ -57,7 +65,7 @@ void listar_produtos(Produto produtos[], int total) {
     cout << "--------------------------------------" << endl;
     // Fazendo a leitura de todos os produtos registrados e exibindo suas informações
     for (int i = 0; i < total; i++) {
-        cout << i << " - Nome: " << produtos[i].nome<<endl;
+        cout << produtos[i].codigo << " - Nome: " << produtos[i].nome<<endl;
         cout << "Preço: R$" << produtos[i].preco<<endl;
         cout << "Quantidade: " << produtos[i].quantidade << endl;
         cout << "--------------------------------------" << endl;
@@ -65,11 +73,12 @@ void listar_produtos(Produto produtos[], int total) {
     cout << endl;
 }
 // Função para editar um produto
-int editar_produto(Produto produtos[]) {
+int editar_produto(Produto produtos[], fstream &arquivo) {
     // Verificando a senha administradora para acessar o editor de produto
     int password;
     cout << "Digite a senha para acessar o editor de produtos: ";
     cin >> password;
+    Produto editar;
 
     // Se a senha for correspondente, o usuário pode editar um produto
     if( password == 2025) {
@@ -78,22 +87,35 @@ int editar_produto(Produto produtos[]) {
         cout << "Digite o ID do produto que deseja editar: ";
         cin >> id_produto;
 
-        cout << "Editando produto: " << produtos[id_produto].nome << endl;
-
-        cin.ignore();
-        // Entrada no nome do produto
-        cout << "Nome do produto: ";
-        cin.getline(produtos[id_produto].nome, 50);
+        arquivo.clear(); // limpa estado de erro anterior
+        arquivo.seekg(0, arquivo.beg); // vai para o início do arquivo
+        
+        while(arquivo.read((char*)&editar, sizeof(editar))){
+		    if(editar.codigo == id_produto){
+			    cout << "Editando produto: " << produtos[id_produto].nome << endl;
+                cin.ignore();
+                // Entrada no nome do produto
+                cout << "Nome do produto: ";
+                cin.getline(editar.nome, 50);
     
-        // Entrada no preço do produto
-        cout << "Preço do produto: ";
-        cin >> produtos[id_produto].preco;
+                // Entrada no preço do produto
+                cout << "Preço do produto: ";
+                cin >> editar.preco;
 
-        // Entrada na quantidade do produto
-        cout << "Quantidade em estoque: ";
-        cin >> produtos[id_produto].quantidade;
+                // Entrada na quantidade do produto
+                cout << "Quantidade em estoque: ";
+                cin >> editar.quantidade;
 
-        cout << "Produto atualizado com sucesso!" << endl;
+                produtos[id_produto] = editar;
+
+                cout << "Produto atualizado com sucesso!" << endl;
+			
+			    arquivo.seekp(-streamoff(sizeof(editar)), arquivo.cur);
+			    arquivo.write((char*)&editar, sizeof(editar));
+			    break;
+		    }
+	    }
+        arquivo.clear();
     }
     else{
         cout << "Senha incorreta!" << endl;
@@ -101,7 +123,7 @@ int editar_produto(Produto produtos[]) {
     return 1; 
 }
 // Função para remover um produto
-int remover_produto(Produto produtos[],int total) {
+int remover_produto(Produto produtos[],int total, fstream &arquivo) {
     // Verificando a senha administradora para acessar o removedor de produto
     int password;
     cout << "Digite a senha para acessar o removedor de produtos: ";
@@ -127,25 +149,61 @@ int remover_produto(Produto produtos[],int total) {
             }
             total--;
             cout << "Produto removido com sucesso!" << endl << endl;
+
+            arquivo.close();
+            arquivo.open("lista_produtos.txt", ios::in | ios::out | ios::binary | ios::trunc);
+            for (int i = 0; i < total; i++) {
+                arquivo.write((char*)&produtos[i], sizeof(produtos));
+            }
+            arquivo.close();
+            arquivo.open("lista_produtos.txt", ios::in | ios::out | ios::binary);
         }
         // Se o usuário não confirmar a remoção, uma mensagem é exibida
         else{
             cout << "Remoção cancelada!" << endl << endl;
         }
+        return total;
     } 
     else {
         cout << "Senha incorreta!" << endl << endl;
     }
     return total;
 }
+
+int guardar_produtos(Produto produtos[], fstream &produtos_arq) {
+    Produto lista;
+    int i=0;
+    // Limpando o arquivo antes de escrever os novos produtos
+    produtos_arq.seekg(0, produtos_arq.beg);
+    while(produtos_arq.read((char*)&lista, sizeof(lista))){
+        produtos[i] = lista;
+        i++;
+	}
+    produtos_arq.clear(); // Limpa o estado do arquivo
+    return i;
+}
+
+
 // Função principal
 int main() {
     // Ativa os acentos
     setlocale(LC_ALL, "Portuguese");
 
+    // Coletando os todos os dados de produtos no arquivo lista_produtos.txt
+    fstream produtos_arq;
+	produtos_arq.open("lista_produtos.txt", ios::in | ios::out | ios::binary);
+
+    // Se o arquivo não existir, cria um novo arquivo
+    if(!produtos_arq.is_open()){
+		produtos_arq.open("lista_produtos.txt", ios::in | ios::out | ios::binary | ios::trunc);
+	}
+
     // Variáveis principais
     Produto produtos[1000]; // até 1000 produtos
     int total_produtos = 0;
+
+    total_produtos = guardar_produtos(produtos,produtos_arq);
+    
     int op = 0;
 
     // Loop do menu principal
@@ -171,7 +229,7 @@ int main() {
         switch (op) {
             // Caso o usuário escolha a opção 1, o programa chama a função de cadastro de produto
             case 1:
-                total_produtos = cadastro_de_produto(produtos, total_produtos);
+                total_produtos = cadastro_de_produto(produtos, total_produtos, produtos_arq);
                 break;
             // Caso o usuário escolha a opção 2, o programa chama a função de listar produtos
             case 2:
@@ -179,7 +237,7 @@ int main() {
                 break;
             // Caso o usuário escolha a opção 3, o programa chama a função de remover produto
             case 3:
-                total_produtos = remover_produto(produtos, total_produtos);
+                total_produtos = remover_produto(produtos, total_produtos, produtos_arq);
                 break;
             // Caso o usuário escolha a opção 4, o programa informa que essa funcionalidade ainda está em desenvolvimento
             case 4:
@@ -187,11 +245,12 @@ int main() {
                 break;
             // Caso o usuário escolha a opção 5, o programa chama a função de editar produto
             case 5:
-                editar_produto(produtos);
+                editar_produto(produtos,produtos_arq);
                 break;
             // Caso o usuário escolha a opção 6, o programa encerra
             case 6:
                 cout << "Saindo do programa! Obrigado por utilizá-lo!" << endl << endl;
+                produtos_arq.close();
                 return 0;
             // Caso o usuário escolha a opção 7, o programa exibe os membros da equipe responsáveis pelo projeto
             case 7:
@@ -208,5 +267,6 @@ int main() {
                 break;
         }
     }
+    produtos_arq.close();
     return 0;
 }
