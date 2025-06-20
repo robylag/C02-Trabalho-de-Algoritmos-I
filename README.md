@@ -18,3 +18,7 @@ O projeto consiste no desenvolvimento de um sistema de gerenciamento de produtos
 Linguagem: C++
 
 Ambiente de desenvolvimento: Falcon C++
+
+# Imagens do projeto
+![image](https://github.com/user-attachments/assets/6f448de4-84d3-46dc-88ca-ff660868061f)
+
