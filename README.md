@@ -1,1 +1,1 @@
-# C02---Projeto-de-Algor-tmos
+# C02-Trabalho-de-Algoritmos
